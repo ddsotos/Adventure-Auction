@@ -282,7 +282,28 @@ function calcWinRates(){
 /* ========= UI生成 ========= */
 function init(){
   targets=Array.from({length:PLAYERS},()=>Array(FACES).fill(0));
+  renderScore()
   render();
+}
+
+function renderScore(){
+  /* scoreはrender()では更新しない。値が消えてしまうため */
+  const sb=document.getElementById("score-box");
+  sb.innerHTML="落札額合計: ";
+  scoreInputs=[];
+  for(let i=0;i<PLAYERS;i++){
+    const inp=document.createElement("input");
+    inp.type="number"; inp.style.width="45px";
+    inp.addEventListener("blur",render);
+    inp.addEventListener("keydown", e=>{
+      if(e.key === "Enter"){
+        inp.blur(); // blur で render が走る
+      }
+    });
+    sb.appendChild(inp);
+    if(i<PLAYERS-1) sb.append(" / ");
+    scoreInputs.push(inp);
+  }
 }
 
 function renderHeader(){
@@ -336,20 +357,7 @@ function renderbulk(){
   }
 }
 
-function renderScore(){
-  /* score */
-  const sb=document.getElementById("score-box");
-  sb.innerHTML="落札額合計: ";
-  scoreInputs=[];
-  for(let i=0;i<PLAYERS;i++){
-    const inp=document.createElement("input");
-    inp.type="number"; inp.style.width="45px";
-    inp.addEventListener("blur",render);
-    sb.appendChild(inp);
-    if(i<PLAYERS-1) sb.append(" / ");
-    scoreInputs.push(inp);
-  }
-}
+
 
 function renderEV(){
   const ea=document.getElementById("expect-area");
@@ -386,7 +394,6 @@ function render(){
   renderHeader()
   renderMatrix()
   renderbulk()
-  renderScore()
   renderEV()
   renderWinRate()
 }
