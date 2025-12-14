@@ -109,7 +109,7 @@ h1 { font-size:1.1rem; margin:0 0 8px }
 <h1>冒険オークション計算機</h1>
 <p class="small">プレイヤーのクエスト設定値を、上を1の目として6の目まで入力してください。</p>
 <p class="small">損害の期待値、上振れ期待値（運の良さが対象範囲の時の期待値）を計算します。</p>
-<p class="small">全員分のクエスト設定値と損害計算前資産を入力すれば、勝率も計算します。</p>
+<p class="small">全員分のクエスト設定値と落札額合計を入力すれば、勝率も計算します。</p>
 
 <div id="settings-bar">
   <div class="setting-item">
@@ -339,7 +339,7 @@ function renderbulk(){
 function renderScore(){
   /* score */
   const sb=document.getElementById("score-box");
-  sb.innerHTML="損害計算前資産: ";
+  sb.innerHTML="落札額合計: ";
   scoreInputs=[];
   for(let i=0;i<PLAYERS;i++){
     const inp=document.createElement("input");
