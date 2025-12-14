@@ -3,399 +3,421 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Dice Quest — 期待値・上振れ期待値・勝率</title>
+<title>冒険オークション計算機</title>
+
 <style>
-  body {
-    font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN",
-                 "Yu Gothic", Meiryo, sans-serif;
-    margin: 12px;
-  }
+body {
+  font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN",
+               "Yu Gothic", Meiryo, sans-serif;
+  margin: 12px;
+}
+h1 { font-size:1.1rem; margin:0 0 8px }
+.small { font-size:12px; color:#444 }
 
-  h1 {
-    font-size: 1.1rem;
-    margin: 0 0 8px;
-  }
+#player-head,
+#matrix,
+.bulk-area,
+.expect-area {
+  display:grid;
+  gap: min(6px, 1.5vw);
+}
 
-  #player-head {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    text-align: center;
-    background: #eee;
-    padding: 6px 0;
-    font-weight: 700;
-  }
+#player-head {
+  background:#eee;
+  padding:6px 0;
+  font-weight:700;
+  text-align:center;
+}
 
-  #matrix {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: min(4px, 1vw);
-    margin-top: 8px;
-  }
+.cell {
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:min(4px,1vw);
+}
 
-  .cell {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: min(4px, 1vw);
-    padding: min(4px, 1vw);
-  }
+.btn {
+  width:min(28px,6vw);
+  height:min(28px,6vw);
+  border-radius:6px;
+  border:1px solid #555;
+  background:#fff;
+  font-size:min(15px,4vw);
+  padding:0;
+}
 
-  /* ±ボタン */
-  .btn {
-    width: min(28px, 6vw);
-    height: min(28px, 6vw);
-    border-radius: 6px;
-    border: 1px solid #555;
-    background: #fff;
-    font-size: min(15px, 4vw);
-    padding: 0;
-  }
+.value {
+  width:min(28px,6vw);
+  text-align:center;
+  font-size:min(15px,4vw);
+}
 
-  /* 数値表示 */
-  .value {
-    width: min(28px, 6vw);
-    text-align: center;
-    font-size: min(15px, 4vw);
-  }
+.bulk-column {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:min(6px,1.5vw);
+}
 
-  /* 一括操作 */
-  .bulk-area {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: min(8px, 2vw);
-    margin-top: 10px;
-  }
+.bulk-btn {
+  width:min(76px,22vw);
+  padding:min(6px,1.5vw);
+  border-radius:6px;
+  border:1px solid #666;
+  background:#fafafa;
+  font-size:min(13px,3.5vw);
+}
 
-  .bulk-column {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: min(6px, 1.5vw);
-  }
+.expect-box {
+  background:#f7f7f7;
+  border:1px solid #ddd;
+  border-radius:6px;
+  padding:min(8px,2vw);
+  font-size:min(13px,3.5vw);
+  text-align:center;
+}
 
-  .bulk-btn {
-    width: min(76px, 22vw);
-    padding: min(6px, 1.5vw);
-    border-radius: 6px;
-    border: 1px solid #666;
-    background: #fafafa;
-    font-size: min(13px, 3.5vw);
-  }
+.score-box {
+  margin-top:10px;
+  text-align:center;
+  font-size:min(13px,3.5vw);
+}
 
-  /* 期待値・勝率 */
-  .expect-area {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: min(8px, 2vw);
-    margin-top: 12px;
-  }
+.settings-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 10px 0;
+}
 
-  .expect-box {
-    background: #f7f7f7;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    padding: min(8px, 2vw);
-    font-size: min(13px, 3.5vw);
-    text-align: center;
-  }
+.setting-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: min(13px, 3.5vw);
+}
 
-  .small {
-    font-size: min(12px, 3.2vw);
-    color: #444;
-  }
-
-  .score-box {
-    margin-top: 10px;
-    text-align: center;
-    font-size: min(13px, 3.5vw);
-  }
+.setting-item input,
+.setting-item select {
+  width: 64px;
+}
 </style>
-
 </head>
-<body>
-<h1>Dice Quest — 期待値・上振れ期待値・勝率</h1>
-<p class="small">ペナルティ = Σ max(0, 必要数 − 出目数) × (目 + 4) × 20（目は1〜6）</p>
 
-<div id="player-head">
-  <div>P1</div><div>P2</div><div>P3</div><div>P4</div>
+<body>
+<h1>冒険オークション計算機</h1>
+<p class="small">プレイヤーのクエスト設定値を、上を1の目として6の目まで入力してください。</p>
+<p class="small">損害の期待値、上振れ期待値（運の良さが対象範囲の時の期待値）を計算します。</p>
+<p class="small">全員分のクエスト設定値と損害計算前資産を入力すれば、勝率も計算します。</p>
+
+<div id="settings-bar">
+  <div class="setting-item">
+    <label>人数</label>
+    <select id="playerCount">
+      <option value="2">2人</option>
+      <option value="3">3人</option>
+      <option value="4" selected>4人</option>
+      <option value="5">5人</option>
+      <option value="6">6人</option>
+      <option value="7">7人</option>
+    </select>
+  </div>
+
+  <div class="setting-item">
+    <label>上振れ期待値の対象範囲</label>
+    <input id="upperLow" type="number" min="0" max="100" step="1" value="10"> %
+    ～
+    <input id="upperHigh" type="number" min="0" max="100" step="1" value="40"> %
+  </div>
 </div>
 
-<div id="matrix" aria-hidden="false"></div>
+<div id="player-head"></div>
+<div id="matrix"></div>
 <div id="bulk-area" class="bulk-area"></div>
 
-<div class="score-box">
-  初期得点: 
-  <input id="score1" type="number" style="width:60px;"> /
-  <input id="score2" type="number" style="width:60px;"> /
-  <input id="score3" type="number" style="width:60px;"> /
-  <input id="score4" type="number" style="width:60px;">
-</div>
+<div class="score-box" id="score-box"></div>
 
-<div class="expect-area" id="expect-area"></div>
+<div id="expect-area" class="expect-area"></div>
+<div id="winrate-area" class="expect-area"></div>
 
-<div class="expect-area" id="winrate-area"></div>
-
-<footer>※ DICE_COUNT = <span id="diceCountDisplay">12</span></footer>
+<footer class="small">
+DICE_COUNT = <span id="diceCountDisplay"></span>
+</footer>
 
 <script>
+/* ========= 定数 ========= */
 const DICE_COUNT = 12;
-document.getElementById('diceCountDisplay').textContent = DICE_COUNT;
-
-const PLAYERS = 4;
 const FACES = 6;
+document.getElementById("diceCountDisplay").textContent = DICE_COUNT;
 
-const fact = [1];
-for(let i=1;i<=DICE_COUNT;i++) fact[i] = fact[i-1] * i;
+/* ========= グローバル可変 ========= */
+let PLAYERS = 4;
+let targets = [];
+let scoreInputs = [];
+let upperLowPct  = 10;   // %
+let upperHighPct = 40;  // %
 
-const countPatterns = [];
-(function enumPatterns(){
-  function helper(pos, rem, arr){
-    if(pos === FACES-1){
-      arr[pos] = rem;
-      const a = arr.slice();
-      let denom = 1;
-      for(const v of a) denom *= fact[v];
-      const freq = fact[DICE_COUNT] / denom;
-      countPatterns.push({counts:a, freq});
+/* ========= サイコロ分布前計算 ========= */
+const fact=[1];
+for(let i=1;i<=DICE_COUNT;i++) fact[i]=fact[i-1]*i;
+
+const countPatterns=[];
+(function(){
+  function dfs(pos, rem, arr){
+    if(pos===FACES-1){
+      arr[pos]=rem;
+      const a=arr.slice();
+      let denom=1;
+      for(const v of a) denom*=fact[v];
+      countPatterns.push({counts:a,freq:fact[DICE_COUNT]/denom});
       return;
     }
-    for(let v=0; v<=rem; v++){
+    for(let v=0;v<=rem;v++){
       arr[pos]=v;
-      helper(pos+1, rem-v, arr);
+      dfs(pos+1, rem-v, arr);
     }
   }
-  helper(0, DICE_COUNT, new Array(FACES).fill(0));
+  dfs(0,DICE_COUNT,new Array(FACES).fill(0));
 })();
 
-const targets = Array.from({length:PLAYERS}, ()=>Array(FACES).fill(0));
-const cache = new Map();
+const cache=new Map();
 
-function penaltyFromCountsAndTarget(counts, target){
-  let pen = 0;
+/* ========= 計算 ========= */
+function penaltyFromCountsAndTarget(counts,target){
+  let pen=0;
   for(let i=0;i<FACES;i++){
-    const need = Math.max(0, target[i] - counts[i]);
-    if(need===0) continue;
-    const weight = (i+1 + 4) * 20;
-    pen += need * weight;
+    const need=Math.max(0,target[i]-counts[i]);
+    pen+=need*(i+5)*20;
   }
   return pen;
 }
 
 function computeDistributionForTarget(target){
-  const key = target.join(',');
+  const key=target.join(",");
   if(cache.has(key)) return cache.get(key);
 
-  const sumT = target.reduce((a,b)=>a+b,0);
-  if(sumT > DICE_COUNT){
-    const impossible = {pmf:new Map(), expect:NaN, entries:[]};
-    cache.set(key, impossible);
-    return impossible;
+  const sum=target.reduce((a,b)=>a+b,0);
+  if(sum>DICE_COUNT){
+    const r={expect:NaN,entries:[]};
+    cache.set(key,r);
+    return r;
   }
 
-  const freqMap = new Map();
-  let totalFreq = 0;
-
+  const map=new Map();
+  let tot=0;
   for(const pat of countPatterns){
-    const pen = penaltyFromCountsAndTarget(pat.counts, target);
-    freqMap.set(pen, (freqMap.get(pen)||0) + pat.freq);
-    totalFreq += pat.freq;
+    const pen=penaltyFromCountsAndTarget(pat.counts,target);
+    map.set(pen,(map.get(pen)||0)+pat.freq);
+    tot+=pat.freq;
   }
 
-  const entries = [...freqMap.entries()].sort((a,b)=>a[0]-b[0]);
-  const pmf = new Map();
-  let expect = 0;
+  let expect=0;
+  const entries=[...map.entries()].sort((a,b)=>a[0]-b[0])
+    .map(([pen,f])=>{
+      const p=f/tot;
+      expect+=pen*p;
+      return [pen,p];
+    });
 
-  const entriesProb = entries.map(([pen,freq])=>{
-    const p = freq/totalFreq;
-    pmf.set(pen,p);
-    expect += pen*p;
-    return [pen,p];
-  });
-
-  const result = {pmf, expect, entries:entriesProb};
-  cache.set(key,result);
-  return result;
+  const r={expect,entries};
+  cache.set(key,r);
+  return r;
 }
 
-function calcUpperEVFromEntries(entries){
-  const L=0.10,H=0.40;
-  let cum=0;
-  const seg=[];
+function calcUpperEV(entries, low, high){
+  let cum = 0, ev = 0, tot = 0;
   for(const [pen,p] of entries){
-    const s=cum, e=cum+p;
-    const left=Math.max(s,L);
-    const right=Math.min(e,H);
-    if(right>left) seg.push({pen,portion:right-left});
-    cum=e;
-    if(cum>=H) break;
+    const s = cum, e = cum + p;
+    const l = Math.max(s, low);
+    const r = Math.min(e, high);
+    if(r > l){
+      ev  += pen * (r - l);
+      tot += (r - l);
+    }
+    cum = e;
   }
-  const tot=seg.reduce((a,b)=>a+b.portion,0);
-  if(tot<=0) return NaN;
-  let ev=0;
-  for(const o of seg) ev+=o.pen*(o.portion/tot);
-  return ev;
+  return tot > 0 ? ev / tot : NaN;
 }
 
-function calcWinRates() {
+/* ========= 勝率（DP高速） ========= */
+function calcWinRates(){
+  const scores=scoreInputs.map(i=>i.value===""?0:Number(i.value));
+  const dists=targets.map((t,i)=>
+    computeDistributionForTarget(t).entries.map(([pen,p])=>[scores[i]-pen,p])
+  );
 
-  // 初期得点
-  const scores = [
-    score1.value === "" ? 0 : Number(score1.value),
-    score2.value === "" ? 0 : Number(score2.value),
-    score3.value === "" ? 0 : Number(score3.value),
-    score4.value === "" ? 0 : Number(score4.value),
-  ];
-
-  // 各プレイヤーの (score, prob) 分布を構築する
-  const d0 = computeDistributionForTarget(targets[0]).entries.map(([pen, p]) => [scores[0] - pen, p]);
-  const d1 = computeDistributionForTarget(targets[1]).entries.map(([pen, p]) => [scores[1] - pen, p]);
-  const d2 = computeDistributionForTarget(targets[2]).entries.map(([pen, p]) => [scores[2] - pen, p]);
-  const d3 = computeDistributionForTarget(targets[3]).entries.map(([pen, p]) => [scores[3] - pen, p]);
-
-  const distList = [d0, d1, d2, d3];
-
-  // -------- DP 初期化（プレイヤー0のみ）--------
-  // map の key = "maxScore|mask", value = prob
-  // mask は勝っているプレイヤー集合
-  let map = new Map();
-  for (const [s, p] of distList[0]) {
-    const key = `${s}|1`; // P0 → bit 1<<0 = 1
-    map.set(key, (map.get(key) || 0) + p);
+  let map=new Map();
+  for(const [s,p] of dists[0]){
+    map.set(`${s}|1`,p);
   }
 
-  // -------- プレイヤー 1, 2, 3 を順次マージ --------
-  for (let i = 1; i < 4; i++) {
-    const nextMap = new Map();
-    const bit = 1 << i;
-
-    for (const [key, prob0] of map) {
-      const [max0, mask0] = key.split("|").map(Number);
-
-      for (const [s, prob1] of distList[i]) {
-        const p = prob0 * prob1;
-
-        if (s > max0) {
-          // 新しい最高スコア
-          const key2 = `${s}|${bit}`;
-          nextMap.set(key2, (nextMap.get(key2) || 0) + p);
-
-        } else if (s < max0) {
-          // 現状維持
-          const key2 = `${max0}|${mask0}`;
-          nextMap.set(key2, (nextMap.get(key2) || 0) + p);
-
-        } else {
-          // 同点
-          const key2 = `${max0}|${mask0 | bit}`;
-          nextMap.set(key2, (nextMap.get(key2) || 0) + p);
-        }
+  for(let i=1;i<PLAYERS;i++){
+    const next=new Map(), bit=1<<i;
+    for(const [k,p0] of map){
+      const [max,mask]=k.split("|").map(Number);
+      for(const [s,p1] of dists[i]){
+        const p=p0*p1;
+        let nk;
+        if(s>max) nk=`${s}|${bit}`;
+        else if(s<max) nk=`${max}|${mask}`;
+        else nk=`${max}|${mask|bit}`;
+        next.set(nk,(next.get(nk)||0)+p);
       }
     }
-
-    map = nextMap;
+    map=next;
   }
 
-  // -------- DP 結果から勝率を分配 --------
-  const winProb = [0, 0, 0, 0];
-
-  for (const [key, p] of map) {
-    const [, mask] = key.split("|").map(Number);
-
-    // mask の立っているビット = 勝っているプレイヤー
-    const winners = [];
-    for (let i = 0; i < 4; i++) {
-      if (mask & (1 << i)) winners.push(i);
-    }
-
-    const share = p / winners.length;
-    for (const w of winners) winProb[w] += share;
+  const win=Array(PLAYERS).fill(0);
+  for(const [k,p] of map){
+    const mask=Number(k.split("|")[1]);
+    const winners=[];
+    for(let i=0;i<PLAYERS;i++) if(mask&(1<<i)) winners.push(i);
+    const share=p/winners.length;
+    for(const w of winners) win[w]+=share;
   }
-
-  return winProb;
+  return win;
 }
 
+/* ========= UI生成 ========= */
+function init(){
+  targets=Array.from({length:PLAYERS},()=>Array(FACES).fill(0));
+  render();
+}
 
-function render(){
-  const matrix=document.getElementById('matrix');
+function renderHeader(){
+  const head=document.getElementById("player-head");
+  head.style.gridTemplateColumns=`repeat(${PLAYERS},1fr)`;
+  head.innerHTML="";
+  for(let i=0;i<PLAYERS;i++){
+    const d=document.createElement("div");
+    d.textContent=`P${i+1}`;
+    head.appendChild(d);
+  }
+}
+
+function renderMatrix(){
+  const matrix=document.getElementById("matrix");
+  matrix.style.gridTemplateColumns=`repeat(${PLAYERS},1fr)`;
   matrix.innerHTML="";
   for(let f=0;f<FACES;f++){
     for(let p=0;p<PLAYERS;p++){
-      const cell=document.createElement('div');
-      cell.className='cell';
-
-      const minus=document.createElement('button');
-      minus.className='btn'; minus.textContent='-';
-      minus.onclick=()=>{ targets[p][f]=Math.max(0,targets[p][f]-1); render(); };
-
-      const val=document.createElement('div');
-      val.className='value'; val.textContent=targets[p][f];
-
-      const plus=document.createElement('button');
-      plus.className='btn'; plus.textContent='+';
-      plus.onclick=()=>{ targets[p][f]=Math.min(DICE_COUNT,targets[p][f]+1); render(); };
-
-      cell.append(minus,val,plus);
-      matrix.appendChild(cell);
+      const c=document.createElement("div");
+      c.className="cell";
+      const m=document.createElement("button");
+      m.className="btn"; m.textContent="-";
+      m.onclick=()=>{targets[p][f]=Math.max(0,targets[p][f]-1);render();}
+      const v=document.createElement("div");
+      v.className="value"; v.textContent=targets[p][f];
+      const pl=document.createElement("button");
+      pl.className="btn"; pl.textContent="+";
+      pl.onclick=()=>{targets[p][f]++;render();}
+      c.append(m,v,pl);
+      matrix.appendChild(c);
     }
   }
+}
 
-  const bulk=document.getElementById('bulk-area');
+function renderbulk(){
+  const bulk=document.getElementById("bulk-area");
+  bulk.style.gridTemplateColumns=`repeat(${PLAYERS},1fr)`;
   bulk.innerHTML="";
   for(let p=0;p<PLAYERS;p++){
-    const col=document.createElement('div'); col.className='bulk-column';
-    const up=document.createElement('button'); up.className='bulk-btn'; up.textContent='全 +1';
-    up.onclick=()=>{ for(let f=0;f<FACES;f++) targets[p][f]=Math.min(DICE_COUNT,targets[p][f]+1); render(); };
-
-    const down=document.createElement('button'); down.className='bulk-btn'; down.textContent='全 -1';
-    down.onclick=()=>{ for(let f=0;f<FACES;f++) targets[p][f]=Math.max(0,targets[p][f]-1); render(); };
-
-    col.append(up,down);
+    const col=document.createElement("div");
+    col.className="bulk-column";
+    const up=document.createElement("button");
+    up.className="bulk-btn"; up.textContent="全 +1";
+    up.onclick=()=>{for(let f=0;f<FACES;f++)targets[p][f]++;render();}
+    const dn=document.createElement("button");
+    dn.className="bulk-btn"; dn.textContent="全 -1";
+    dn.onclick=()=>{for(let f=0;f<FACES;f++)targets[p][f]=Math.max(0,targets[p][f]-1);render();}
+    col.append(up,dn);
     bulk.appendChild(col);
   }
+}
 
-  const exp=document.getElementById('expect-area');
-  exp.innerHTML="";
+function renderScore(){
+  /* score */
+  const sb=document.getElementById("score-box");
+  sb.innerHTML="損害計算前資産: ";
+  scoreInputs=[];
+  for(let i=0;i<PLAYERS;i++){
+    const inp=document.createElement("input");
+    inp.type="number"; inp.style.width="60px";
+    inp.addEventListener("blur",render);
+    sb.appendChild(inp);
+    if(i<PLAYERS-1) sb.append(" / ");
+    scoreInputs.push(inp);
+  }
+}
+
+function renderEV(){
+  const ea=document.getElementById("expect-area");
+  ea.style.gridTemplateColumns=`repeat(${PLAYERS},1fr)`;
+  ea.innerHTML="";
   for(let p=0;p<PLAYERS;p++){
     const d=computeDistributionForTarget(targets[p]);
-    const box=document.createElement('div'); box.className='expect-box';
-    const ev=isFinite(d.expect)? d.expect.toFixed(4):'不可能';
-    const upper=isFinite(d.expect)? calcUpperEVFromEntries(d.entries).toFixed(4):'不可能';
-    box.innerHTML=`<div style="font-weight:700">P${p+1}</div>
-                    <div class='small'>期待値: ${ev}</div>
-                    <div class='small'>上振れEV: ${upper}</div>`;
-    exp.appendChild(box);
+    const b=document.createElement("div");
+    const low  = upperLowPct  / 100;
+    const high = upperHighPct / 100;
+    b.className="expect-box";
+    b.innerHTML=`<b>P${p+1}</b><br>
+      期待値: ${isFinite(d.expect)?d.expect.toFixed(3):"不可能"}<br>
+      上振れ: ${isFinite(d.expect)?calcUpperEV(d.entries,low,high).toFixed(3):"不可能"}`;
+    ea.appendChild(b);
   }
+}
 
-  const win=document.getElementById('winrate-area');
-  win.innerHTML="";
+function renderWinRate(){
+  /* 勝率 */
+  const wa=document.getElementById("winrate-area");
+  wa.style.gridTemplateColumns=`repeat(${PLAYERS},1fr)`;
+  wa.innerHTML="";
   const wr=calcWinRates();
   for(let p=0;p<PLAYERS;p++){
-    const box=document.createElement('div');
-    box.className='expect-box';
-    box.innerHTML=`<div style='font-weight:700'>P${p+1} 勝率</div>
-                   <div class='small'>${(wr[p]*100).toFixed(3)}%</div>`;
-    win.appendChild(box);
+    const b=document.createElement("div");
+    b.className="expect-box";
+    b.innerHTML=`<b>P${p+1} 勝率</b><br>${(wr[p]*100).toFixed(3)}%`;
+    wa.appendChild(b);
   }
 }
 
-// 初期得点変更 → 自動で再計算
-function attachScoreEvents(id){
-  const el = document.getElementById(id);
+function render(){
+  renderHeader()
+  renderMatrix()
+  renderbulk()
+  renderScore()
+  renderEV()
+  renderWinRate()
+}
+/* ========= 上振れ範囲変更 ========= */
+function updateUpperRange(){
+  let lo = parseInt(upperLow.value, 10);
+  let hi = parseInt(upperHigh.value, 10);
 
-  el.addEventListener("blur", render);
+  if (isNaN(lo)) lo = 0;
+  if (isNaN(hi)) hi = 100;
 
-  el.addEventListener("keydown", e=>{
-    if(e.key === "Enter"){
-      el.blur(); // blur で render が走る
-    }
-  });
+  lo = Math.max(0, Math.min(100, lo));
+  hi = Math.max(0, Math.min(100, hi));
+  if (lo > hi) [lo, hi] = [hi, lo];
+
+  upperLowPct  = lo;
+  upperHighPct = hi;
+
+  renderEV();
 }
 
-attachScoreEvents("score1");
-attachScoreEvents("score2");
-attachScoreEvents("score3");
-attachScoreEvents("score4");
-render();
+upperLow.addEventListener("change", updateUpperRange);
+upperHigh.addEventListener("change", updateUpperRange);
+
+/* ========= 人数変更 ========= */
+document.getElementById("playerCount").addEventListener("change",e=>{
+  PLAYERS=Number(e.target.value);
+  init();
+});
+
+init();
 </script>
 </body>
 </html>
