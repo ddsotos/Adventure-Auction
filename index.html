@@ -343,7 +343,7 @@ function renderScore(){
   scoreInputs=[];
   for(let i=0;i<PLAYERS;i++){
     const inp=document.createElement("input");
-    inp.type="number"; inp.style.width="60px";
+    inp.type="number"; inp.style.width="45px";
     inp.addEventListener("blur",render);
     sb.appendChild(inp);
     if(i<PLAYERS-1) sb.append(" / ");
