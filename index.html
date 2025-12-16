@@ -102,6 +102,19 @@ h1 { font-size:1.1rem; margin:0 0 8px }
 .setting-item select {
   width: 64px;
 }
+
+.dist-bar {
+  height: 16px;
+  background: #69c;
+}
+.dist-row {
+  display: grid;
+  grid-template-columns: 80px 70px 1fr;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+  font-size: 12px;
+}
 </style>
 </head>
 
@@ -142,8 +155,14 @@ h1 { font-size:1.1rem; margin:0 0 8px }
 <div id="winrate-area" class="expect-area"></div>
 
 <footer class="small">
-DICE_COUNT = <span id="diceCountDisplay"></span>
+  DICE_COUNT = <span id="diceCountDisplay"></span>
+  <label style="margin-left:12px">
+    <input type="checkbox" id="showDist">
+    確率分布を表示（P1）
+  </label>
 </footer>
+
+<div id="dist-area" style="margin-top:10px"></div>
 
 <script>
 /* ========= 定数 ========= */
@@ -390,13 +409,43 @@ function renderWinRate(){
   }
 }
 
+function renderDistribution(){
+  const area = document.getElementById("dist-area");
+  const cb   = document.getElementById("showDist");
+
+  if(!cb.checked){
+    area.innerHTML = "";
+    return;
+  }
+
+  const dist = computeDistributionForTarget(targets[0]).entries;
+
+  let html = "<b>P1 損害額の確率分布</b>";
+  for(const [pen, p] of dist){
+    const pct = (p * 100);
+    html += `
+      <div class="dist-row">
+        <div>${pen}</div>
+        <div>${pct.toFixed(2)}%</div>
+        <div class="dist-bar" style="width:${pct}%;"></div>
+      </div>
+    `;
+  }
+  area.innerHTML = html;
+}
+
 function render(){
   renderHeader()
   renderMatrix()
   renderbulk()
   renderEV()
   renderWinRate()
+  renderDistribution()
 }
+
+document.getElementById("showDist")
+  .addEventListener("change", renderDistribution);
+
 /* ========= 上振れ範囲変更 ========= */
 function updateUpperRange(){
   let lo = parseInt(upperLow.value, 10);
@@ -417,6 +466,7 @@ function updateUpperRange(){
 
 upperLow.addEventListener("change", updateUpperRange);
 upperHigh.addEventListener("change", updateUpperRange);
+
 
 /* ========= 人数変更 ========= */
 document.getElementById("playerCount").addEventListener("change",e=>{
