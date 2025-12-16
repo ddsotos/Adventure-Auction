@@ -161,7 +161,9 @@ h1 { font-size:1.1rem; margin:0 0 8px }
     確率分布を表示（P1）
   </label>
 </footer>
-
+<div style="text-align:center; margin:8px 0;">
+  <button id="clearAllBtn" class="bulk-btn">全クリア</button>
+</div>
 <div id="dist-area" style="margin-top:10px"></div>
 
 <script>
@@ -417,11 +419,16 @@ function renderDistribution(){
     area.innerHTML = "";
     return;
   }
+  const raw = computeDistributionForTarget(targets[0]).entries;
 
-  const dist = computeDistributionForTarget(targets[0]).entries;
+  //  ほぼ0%を除外
+  const filtered = raw.filter(([_, p]) => p * 100 >= 0.005);
+
+  //  20刻みで補間 グラフの形を整える
+  const normalized = normalizeDistribution(filtered, 20);
 
   let html = "<b>P1 損害額の確率分布</b>";
-  for(const [pen, p] of dist){
+  for(const [pen, p] of normalized){
     const pct = (p * 100);
     html += `
       <div class="dist-row">
@@ -432,6 +439,20 @@ function renderDistribution(){
     `;
   }
   area.innerHTML = html;
+}
+
+function normalizeDistribution(entries, step = 20){
+  if(entries.length === 0) return [];
+
+  const map = new Map(entries); // pen -> prob
+  const min = entries[0][0];
+  const max = entries[entries.length - 1][0];
+
+  const res = [];
+  for(let v = min; v <= max; v += step){
+    res.push([v, map.get(v) || 0]);
+  }
+  return res;
 }
 
 function render(){
@@ -466,7 +487,9 @@ function updateUpperRange(){
 
 upperLow.addEventListener("change", updateUpperRange);
 upperHigh.addEventListener("change", updateUpperRange);
-
+document.getElementById("clearAllBtn").addEventListener("click", () => {
+  init();
+});
 
 /* ========= 人数変更 ========= */
 document.getElementById("playerCount").addEventListener("change",e=>{
@@ -475,6 +498,26 @@ document.getElementById("playerCount").addEventListener("change",e=>{
 });
 
 init();
+applyStartupPreset();
+
+function applyStartupPreset(){
+  // 起動時は必ず4人前提
+  if (PLAYERS !== 4) return;
+
+  // P2
+  targets[1] = [1, 2, 2, 1, 2, 2];
+  scoreInputs[1].value = 220;
+
+  // P3
+  targets[2] = [1, 2, 1, 2, 1, 1];
+  scoreInputs[2].value = 100;
+
+  // P4
+  targets[3] = [1, 2, 0, 1, 1, 1];
+  scoreInputs[3].value = 40;
+
+  render(); // ← 反映だけ行う
+}
 </script>
 </body>
 </html>
