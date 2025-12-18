@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>冒険オークション計算機</title>
+
+<style>
+body {
+  font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN",
+               "Yu Gothic", Meiryo, sans-serif;
+  margin: 12px;
+}
+h1 { font-size:1.1rem; margin:0 0 8px }
+.small { font-size:12px; color:#444 }
+
+#player-head,
+#matrix,
+.bulk-area,
+.expect-area {
+  display:grid;
+  gap: min(6px, 1.5vw);
+}
+
+#player-head {
+  background:#eee;
+  padding:6px 0;
+  font-weight:700;
+  text-align:center;
+}
+
+.cell {
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:min(4px,1vw);
+}
+
+.btn {
+  width:min(28px,6vw);
+  height:min(28px,6vw);
+  border-radius:6px;
+  border:1px solid #555;
+  background:#fff;
+  font-size:min(15px,4vw);
+  padding:0;
+}
+
+.value {
+  width:min(28px,6vw);
+  text-align:center;
+  font-size:min(15px,4vw);
+}
+
+.bulk-column {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:min(6px,1.5vw);
+}
+
+.bulk-btn {
+  width:min(76px,22vw);
+  padding:min(6px,1.5vw);
+  border-radius:6px;
+  border:1px solid #666;
+  background:#fafafa;
+  font-size:min(13px,3.5vw);
+}
+
+.expect-box {
+  background:#f7f7f7;
+  border:1px solid #ddd;
+  border-radius:6px;
+  padding:min(8px,2vw);
+  font-size:min(13px,3.5vw);
+  text-align:center;
+}
+
+.score-box {
+  margin-top:10px;
+  text-align:center;
+  font-size:min(13px,3.5vw);
+}
+
+.settings-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 10px 0;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: min(13px, 3.5vw);
+}
+
+.setting-item input,
+.setting-item select {
+  width: 64px;
+}
+
+.dist-bar {
+  height: 16px;
+  background: #69c;
+}
+.dist-row {
+  display: grid;
+  grid-template-columns: 80px 70px 1fr;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+  font-size: 12px;
+}
+</style>
+</head>
+
+<body>
+<h1>冒険オークション計算機</h1>
+<p class="small">
+プレイヤーのクエスト設定値を、上を1の目として6の目まで入力してください。<br>
+損害の期待値、上振れ期待値（運の良さが対象範囲の時の期待値）を計算します。<br>
+全員分のクエスト設定値と落札額合計を入力すれば、勝率も計算します。</p>
+
+<div id="settings-bar">
+  <div class="setting-item">
+    <label>人数</label>
+    <select id="playerCount">
+      <option value="2">2人</option>
+      <option value="3">3人</option>
+      <option value="4" selected>4人</option>
+      <option value="5">5人</option>
+      <option value="6">6人</option>
+      <option value="7">7人</option>
+    </select>
+  </div>
+
+  <div class="setting-item">
+    <label>上振れ期待値の対象範囲</label>
+    <input id="upperLow" type="number" min="0" max="100" step="1" value="10"> %
+    ～
+    <input id="upperHigh" type="number" min="0" max="100" step="1" value="40"> %
+  </div>
+</div>
+
+<div id="player-head"></div>
+<div id="matrix"></div>
+<div id="bulk-area" class="bulk-area"></div>
+
+<div class="score-box" id="score-box"></div>
+
+<div id="expect-area" class="expect-area"></div>
+<div id="winrate-area" class="expect-area"></div>
+
+<footer class="small">
+  DICE_COUNT = <span id="diceCountDisplay"></span>
+  <label style="margin-left:12px">
+    <input type="checkbox" id="showDist">
+    確率分布を表示（P1）
+  </label>
+</footer>
+<div style="text-align:center; margin:8px 0;">
+  <button id="clearAllBtn" class="bulk-btn">全クリア</button>
+</div>
+<div id="dist-area" style="margin-top:10px"></div>
+
+<script>
+/* ========= 定数 ========= */
+const DICE_COUNT = 12;
+const FACES = 6;
+document.getElementById("diceCountDisplay").textContent = DICE_COUNT;
+
+/* ========= グローバル可変 ========= */
+let PLAYERS = 4;
+let targets = [];
+let scoreInputs = [];
+let upperLowPct  = 10;   // %
+let upperHighPct = 40;  // %
+
+/* ========= サイコロ分布前計算 ========= */
+const fact=[1];
+for(let i=1;i<=DICE_COUNT;i++) fact[i]=fact[i-1]*i;
+
+const countPatterns=[];
+(function(){
+  function dfs(pos, rem, arr){
+    if(pos===FACES-1){
+      arr[pos]=rem;
+      const a=arr.slice();
+      let denom=1;
+      for(const v of a) denom*=fact[v];
+      countPatterns.push({counts:a,freq:fact[DICE_COUNT]/denom});
+      return;
+    }
+    for(let v=0;v<=rem;v++){
+      arr[pos]=v;
+      dfs(pos+1, rem-v, arr);
+    }
+  }
+  dfs(0,DICE_COUNT,new Array(FACES).fill(0));
+})();
+
+const cache=new Map();
+
+/* ========= 計算 ========= */
+function penaltyFromCountsAndTarget(counts,target){
+  let pen=0;
+  for(let i=0;i<FACES;i++){
+    const need=Math.max(0,target[i]-counts[i]);
+    pen+=need*(i+5)*20;
+  }
+  return pen;
+}
+
+function computeDistributionForTarget(target){
+  const key=target.join(",");
+  if(cache.has(key)) return cache.get(key);
+
+  const sum=target.reduce((a,b)=>a+b,0);
+  if(sum>DICE_COUNT){
+    const r={expect:NaN,entries:[]};
+    cache.set(key,r);
+    return r;
+  }
+
+  const map=new Map();
+  let tot=0;
+  for(const pat of countPatterns){
+    const pen=penaltyFromCountsAndTarget(pat.counts,target);
+    map.set(pen,(map.get(pen)||0)+pat.freq);
+    tot+=pat.freq;
+  }
+
+  let expect=0;
+  const entries=[...map.entries()].sort((a,b)=>a[0]-b[0])
+    .map(([pen,f])=>{
+      const p=f/tot;
+      expect+=pen*p;
+      return [pen,p];
+    });
+
+  const r={expect,entries};
+  cache.set(key,r);
+  return r;
+}
+
+function calcUpperEV(entries, low, high){
+  let cum = 0, ev = 0, tot = 0;
+  for(const [pen,p] of entries){
+    const s = cum, e = cum + p;
+    const l = Math.max(s, low);
+    const r = Math.min(e, high);
+    if(r > l){
+      ev  += pen * (r - l);
+      tot += (r - l);
+    }
+    cum = e;
+  }
+  return tot > 0 ? ev / tot : NaN;
+}
+
+/* ========= 勝率（DP高速） ========= */
+function calcWinRates(){
+  const scores=scoreInputs.map(i=>i.value===""?0:Number(i.value));
+  const dists=targets.map((t,i)=>
+    computeDistributionForTarget(t).entries.map(([pen,p])=>[scores[i]-pen,p])
+  );
+
+  let map=new Map();
+  for(const [s,p] of dists[0]){
+    map.set(`${s}|1`,p);
+  }
+
+  for(let i=1;i<PLAYERS;i++){
+    const next=new Map(), bit=1<<i;
+    for(const [k,p0] of map){
+      const [max,mask]=k.split("|").map(Number);
+      for(const [s,p1] of dists[i]){
+        const p=p0*p1;
+        let nk;
+        if(s>max) nk=`${s}|${bit}`;
+        else if(s<max) nk=`${max}|${mask}`;
+        else nk=`${max}|${mask|bit}`;
+        next.set(nk,(next.get(nk)||0)+p);
+      }
+    }
+    map=next;
+  }
+
+  const win=Array(PLAYERS).fill(0);
+  for(const [k,p] of map){
+    const mask=Number(k.split("|")[1]);
+    const winners=[];
+    for(let i=0;i<PLAYERS;i++) if(mask&(1<<i)) winners.push(i);
+    const share=p/winners.length;
+    for(const w of winners) win[w]+=share;
+  }
+  return win;
+}
+
+/* ========= UI生成 ========= */
+function init(){
+  targets=Array.from({length:PLAYERS},()=>Array(FACES).fill(0));
+  renderScore()
+  render();
+}
+
+function renderScore(){
+  /* scoreはrender()では更新しない。値が消えてしまうため */
+  const sb=document.getElementById("score-box");
+  sb.innerHTML="落札額合計: ";
+  scoreInputs=[];
+  for(let i=0;i<PLAYERS;i++){
+    const inp=document.createElement("input");
+    inp.type="number"; inp.style.width="45px";
+    inp.addEventListener("blur",render);
+    inp.addEventListener("keydown", e=>{
+      if(e.key === "Enter"){
+        inp.blur(); // blur で render が走る
+      }
+    });
+    sb.appendChild(inp);
+    if(i<PLAYERS-1) sb.append(" / ");
+    scoreInputs.push(inp);
+  }
+}
+
+function renderHeader(){
+  const head=document.getElementById("player-head");
+  head.style.gridTemplateColumns=`repeat(${PLAYERS},1fr)`;
+  head.innerHTML="";
+  for(let i=0;i<PLAYERS;i++){
+    const d=document.createElement("div");
+    d.textContent=`P${i+1}`;
+    head.appendChild(d);
+  }
+}
+
+function renderMatrix(){
+  const matrix=document.getElementById("matrix");
+  matrix.style.gridTemplateColumns=`repeat(${PLAYERS},1fr)`;
+  matrix.innerHTML="";
+  for(let f=0;f<FACES;f++){
+    for(let p=0;p<PLAYERS;p++){
+      const c=document.createElement("div");
+      c.className="cell";
+      const m=document.createElement("button");
+      m.className="btn"; m.textContent="-";
+      m.onclick=()=>{targets[p][f]=Math.max(0,targets[p][f]-1);render();}
+      const v=document.createElement("div");
+      v.className="value"; v.textContent=targets[p][f];
+      const pl=document.createElement("button");
+      pl.className="btn"; pl.textContent="+";
+      pl.onclick=()=>{targets[p][f]++;render();}
+      c.append(m,v,pl);
+      matrix.appendChild(c);
+    }
+  }
+}
+
+function renderbulk(){
+  const bulk=document.getElementById("bulk-area");
+  bulk.style.gridTemplateColumns=`repeat(${PLAYERS},1fr)`;
+  bulk.innerHTML="";
+  for(let p=0;p<PLAYERS;p++){
+    const col=document.createElement("div");
+    col.className="bulk-column";
+    const up=document.createElement("button");
+    up.className="bulk-btn"; up.textContent="全 +1";
+    up.onclick=()=>{for(let f=0;f<FACES;f++)targets[p][f]++;render();}
+    const dn=document.createElement("button");
+    dn.className="bulk-btn"; dn.textContent="全 -1";
+    dn.onclick=()=>{for(let f=0;f<FACES;f++)targets[p][f]=Math.max(0,targets[p][f]-1);render();}
+    col.append(up,dn);
+    bulk.appendChild(col);
+  }
+}
+
+
+
+function renderEV(){
+  const ea=document.getElementById("expect-area");
+  ea.style.gridTemplateColumns=`repeat(${PLAYERS},1fr)`;
+  ea.innerHTML="";
+  for(let p=0;p<PLAYERS;p++){
+    const d=computeDistributionForTarget(targets[p]);
+    const b=document.createElement("div");
+    const low  = upperLowPct  / 100;
+    const high = upperHighPct / 100;
+    b.className="expect-box";
+    b.innerHTML=`<b>P${p+1}</b><br>
+      期待値: ${isFinite(d.expect)?d.expect.toFixed(3):"不可能"}<br>
+      上振れ: ${isFinite(d.expect)?calcUpperEV(d.entries,low,high).toFixed(3):"不可能"}`;
+    ea.appendChild(b);
+  }
+}
+
+function renderWinRate(){
+  /* 勝率 */
+  const wa=document.getElementById("winrate-area");
+  wa.style.gridTemplateColumns=`repeat(${PLAYERS},1fr)`;
+  wa.innerHTML="";
+  const wr=calcWinRates();
+  for(let p=0;p<PLAYERS;p++){
+    const b=document.createElement("div");
+    b.className="expect-box";
+    b.innerHTML=`<b>P${p+1} 勝率</b><br>${(wr[p]*100).toFixed(3)}%`;
+    wa.appendChild(b);
+  }
+}
+
+function renderDistribution(){
+  const area = document.getElementById("dist-area");
+  const cb   = document.getElementById("showDist");
+
+  if(!cb.checked){
+    area.innerHTML = "";
+    return;
+  }
+  const raw = computeDistributionForTarget(targets[0]).entries;
+
+  //  ほぼ0%を除外
+  const filtered = raw.filter(([_, p]) => p * 100 >= 0.005);
+
+  //  20刻みで補間 グラフの形を整える
+  const normalized = normalizeDistribution(filtered, 20);
+
+  let html = "<b>P1 損害額の確率分布</b>";
+  for(const [pen, p] of normalized){
+    const pct = (p * 100);
+    html += `
+      <div class="dist-row">
+        <div>${pen}</div>
+        <div>${pct.toFixed(2)}%</div>
+        <div class="dist-bar" style="width:${pct}%;"></div>
+      </div>
+    `;
+  }
+  area.innerHTML = html;
+}
+
+function normalizeDistribution(entries, step = 20){
+  if(entries.length === 0) return [];
+
+  const map = new Map(entries); // pen -> prob
+  const min = entries[0][0];
+  const max = entries[entries.length - 1][0];
+
+  const res = [];
+  for(let v = min; v <= max; v += step){
+    res.push([v, map.get(v) || 0]);
+  }
+  return res;
+}
+
+function render(){
+  renderHeader()
+  renderMatrix()
+  renderbulk()
+  renderEV()
+  renderWinRate()
+  renderDistribution()
+}
+
+document.getElementById("showDist")
+  .addEventListener("change", renderDistribution);
+
+/* ========= 上振れ範囲変更 ========= */
+function updateUpperRange(){
+  let lo = parseInt(upperLow.value, 10);
+  let hi = parseInt(upperHigh.value, 10);
+
+  if (isNaN(lo)) lo = 0;
+  if (isNaN(hi)) hi = 100;
+
+  lo = Math.max(0, Math.min(100, lo));
+  hi = Math.max(0, Math.min(100, hi));
+  if (lo > hi) [lo, hi] = [hi, lo];
+
+  upperLowPct  = lo;
+  upperHighPct = hi;
+
+  renderEV();
+}
+
+upperLow.addEventListener("change", updateUpperRange);
+upperHigh.addEventListener("change", updateUpperRange);
+document.getElementById("clearAllBtn").addEventListener("click", () => {
+  init();
+});
+
+/* ========= 人数変更 ========= */
+document.getElementById("playerCount").addEventListener("change",e=>{
+  PLAYERS=Number(e.target.value);
+  init();
+});
+
+init();
+applyStartupPreset();
+
+function applyStartupPreset(){
+  // 起動時は必ず4人前提
+  if (PLAYERS !== 4) return;
+
+  // P2
+  targets[1] = [1, 2, 2, 1, 2, 2];
+  scoreInputs[1].value = 220;
+
+  // P3
+  targets[2] = [1, 2, 1, 2, 1, 1];
+  scoreInputs[2].value = 100;
+
+  // P4
+  targets[3] = [1, 2, 0, 1, 1, 1];
+  scoreInputs[3].value = 40;
+
+  render(); // ← 反映だけ行う
+}
+</script>
+</body>
+</html>
