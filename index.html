@@ -33,24 +33,39 @@ h1 { font-size:1.1rem; margin:0 0 8px }
   display:flex;
   justify-content:center;
   align-items:center;
-  gap:min(4px,1vw);
+    gap: 2px;
 }
 
+/* === 出目画像（縦6） === */
+.dice-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.dice-col img {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}
+
+/* === 全体をややコンパクトに === */
 .btn {
-  width:min(28px,6vw);
-  height:min(28px,6vw);
-  border-radius:6px;
-  border:1px solid #555;
-  background:#fff;
-  font-size:min(15px,4vw);
-  padding:0;
+  width: min(24px, 5.5vw);
+  height: min(24px, 5.5vw);
+  font-size: min(13px, 3.5vw);
 }
 
 .value {
-  width:min(28px,6vw);
-  text-align:center;
-  font-size:min(15px,4vw);
+  width: min(24px, 5.5vw);
+  font-size: min(13px, 3.5vw);
+
+  /* 追加 */
+  text-align: center;
+  line-height: 1;
 }
+
+
 
 .bulk-column {
   display:flex;
@@ -115,6 +130,9 @@ h1 { font-size:1.1rem; margin:0 0 8px }
   margin-bottom: 2px;
   font-size: 12px;
 }
+:root{
+  --dice-col-width: 24px; /* ← ここで細さ調整 */
+}
 </style>
 </head>
 
@@ -172,6 +190,14 @@ h1 { font-size:1.1rem; margin:0 0 8px }
 const DICE_COUNT = 12;
 const FACES = 6;
 document.getElementById("diceCountDisplay").textContent = DICE_COUNT;
+const diceImages = [
+  "img/dice1.png",
+  "img/dice2.png",
+  "img/dice3.png",
+  "img/dice4.png",
+  "img/dice5.png",
+  "img/dice6.png",
+];
 
 /* ========= グローバル可変 ========= */
 let PLAYERS = 4;
@@ -330,8 +356,13 @@ function renderScore(){
 
 function renderHeader(){
   const head=document.getElementById("player-head");
-  head.style.gridTemplateColumns=`repeat(${PLAYERS},1fr)`;
+  head.style.gridTemplateColumns =
+    `var(--dice-col-width) repeat(${PLAYERS},1fr)`;
   head.innerHTML="";
+
+  /* 空セル（画像列分） */
+  head.appendChild(document.createElement("div"));
+
   for(let i=0;i<PLAYERS;i++){
     const d=document.createElement("div");
     d.textContent=`P${i+1}`;
@@ -340,40 +371,73 @@ function renderHeader(){
 }
 
 function renderMatrix(){
-  const matrix=document.getElementById("matrix");
-  matrix.style.gridTemplateColumns=`repeat(${PLAYERS},1fr)`;
-  matrix.innerHTML="";
-  for(let f=0;f<FACES;f++){
-    for(let p=0;p<PLAYERS;p++){
-      const c=document.createElement("div");
-      c.className="cell";
-      const m=document.createElement("button");
-      m.className="btn"; m.textContent="-";
-      m.onclick=()=>{targets[p][f]=Math.max(0,targets[p][f]-1);render();}
-      const v=document.createElement("div");
-      v.className="value"; v.textContent=targets[p][f];
-      const pl=document.createElement("button");
-      pl.className="btn"; pl.textContent="+";
-      pl.onclick=()=>{targets[p][f]++;render();}
-      c.append(m,v,pl);
+  const matrix = document.getElementById("matrix");
+  matrix.style.gridTemplateColumns =
+    `var(--dice-col-width) repeat(${PLAYERS},1fr)`;
+  matrix.innerHTML = "";
+
+  for(let f = 0; f < FACES; f++){
+
+    /* 画像セル（左端） */
+    const imgCell = document.createElement("div");
+    imgCell.className = "cell";
+    const img = document.createElement("img");
+    img.src = diceImages[f];   // ← 出目ごとに切り替え
+    img.alt = `dice-${f+1}`;
+    img.style.width  = "16px";
+    img.style.height = "16px";    
+    imgCell.appendChild(img);
+    matrix.appendChild(imgCell);
+
+    /* 各プレイヤー */
+    for(let p = 0; p < PLAYERS; p++){
+      const c = document.createElement("div");
+      c.className = "cell";
+
+      const m = document.createElement("button");
+      m.className = "btn";
+      m.textContent = "-";
+      m.onclick = ()=>{targets[p][f]=Math.max(0,targets[p][f]-1);render();}
+
+      const v = document.createElement("div");
+      v.className = "value";
+      v.textContent = targets[p][f];
+
+      const pl = document.createElement("button");
+      pl.className = "btn";
+      pl.textContent = "+";
+      pl.onclick = ()=>{targets[p][f]++;render();}
+
+      c.append(m, v, pl);
       matrix.appendChild(c);
     }
   }
 }
 
+
 function renderbulk(){
   const bulk=document.getElementById("bulk-area");
-  bulk.style.gridTemplateColumns=`repeat(${PLAYERS},1fr)`;
+  bulk.style.gridTemplateColumns =
+    `var(--dice-col-width) repeat(${PLAYERS},1fr)`;
   bulk.innerHTML="";
+
+  /* 空セル */
+  bulk.appendChild(document.createElement("div"));
+
   for(let p=0;p<PLAYERS;p++){
     const col=document.createElement("div");
     col.className="bulk-column";
+
     const up=document.createElement("button");
-    up.className="bulk-btn"; up.textContent="全 +1";
+    up.className="bulk-btn";
+    up.textContent="全 +1";
     up.onclick=()=>{for(let f=0;f<FACES;f++)targets[p][f]++;render();}
+
     const dn=document.createElement("button");
-    dn.className="bulk-btn"; dn.textContent="全 -1";
+    dn.className="bulk-btn";
+    dn.textContent="全 -1";
     dn.onclick=()=>{for(let f=0;f<FACES;f++)targets[p][f]=Math.max(0,targets[p][f]-1);render();}
+
     col.append(up,dn);
     bulk.appendChild(col);
   }
@@ -383,14 +447,18 @@ function renderbulk(){
 
 function renderEV(){
   const ea=document.getElementById("expect-area");
-  ea.style.gridTemplateColumns=`repeat(${PLAYERS},1fr)`;
+  ea.style.gridTemplateColumns =
+    `var(--dice-col-width) repeat(${PLAYERS},1fr)`;
   ea.innerHTML="";
+
+  ea.appendChild(document.createElement("div"));
+
   for(let p=0;p<PLAYERS;p++){
     const d=computeDistributionForTarget(targets[p]);
     const b=document.createElement("div");
+    b.className="expect-box";
     const low  = upperLowPct  / 100;
     const high = upperHighPct / 100;
-    b.className="expect-box";
     b.innerHTML=`<b>P${p+1}</b><br>
       期待値: ${isFinite(d.expect)?d.expect.toFixed(3):"不可能"}<br>
       上振れ: ${isFinite(d.expect)?calcUpperEV(d.entries,low,high).toFixed(3):"不可能"}`;
@@ -399,10 +467,13 @@ function renderEV(){
 }
 
 function renderWinRate(){
-  /* 勝率 */
   const wa=document.getElementById("winrate-area");
-  wa.style.gridTemplateColumns=`repeat(${PLAYERS},1fr)`;
+  wa.style.gridTemplateColumns =
+    `var(--dice-col-width) repeat(${PLAYERS},1fr)`;
   wa.innerHTML="";
+
+  wa.appendChild(document.createElement("div"));
+
   const wr=calcWinRates();
   for(let p=0;p<PLAYERS;p++){
     const b=document.createElement("div");
